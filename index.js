@@ -14,17 +14,18 @@ app.use(cookieParser());
 // Middleware
 
 app.use(cors({
-    origin: ['http://localhost:5173'],
+    origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app'],
     credentials: true
 }));
 
 const io = new Server(server, {
     cors: {
-        origin: 'http://localhost:5173',
-        methods: ["GET", "POST"],
+        origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app'],
+        methods: ['GET', 'POST'],
         credentials: true
     }
-})
+});
+
 
 const roomUsers = {}
 
@@ -52,19 +53,21 @@ io.on("connection", (socket) => {
     });
 
     // Send Message
-    socket.on("sentMessage", async ({ room, message, senderName, receiverName }) => {
+    socket.on("sentMessage", async ({ room, message, senderName, photo, receiverName }) => {
+        console.log(photo)
         const messageData = {
             room,
             message,
+            photo,
             senderName,
             receiverName,
             timestamp: new Date()
         };
+        io.to(room).emit("receiveMessage", { sender: socket.id, photo, message });
+
         // Save the message to the messages collection
         const messagesCollection = client.db("NexCall").collection('messages');
         await messagesCollection.insertOne(messageData);
-
-        io.to(room).emit("receiveMessage", { sender: socket.id, message });
     });
 
     // Handle Disconnect
@@ -148,17 +151,10 @@ async function run() {
             })
         }
 
-
-        // API to get messages between two users
-        app.get('/messages/:otherUser', verifyToken, async (req, res) => {
-            const userName = req.user.displayName;
-            const otherUser = req.params.otherUser;
-            const messages = await messagesCollection.find({
-                $or: [
-                    { senderName: userName, receiverName: otherUser },
-                    { senderName: otherUser, receiverName: userName }
-                ]
-            }).sort({ timestamp: 1 }).toArray();
+        // API to get all messages for a specific room
+        app.get('/messages/:roomId', async (req, res) => {
+            const roomId = req.params.roomId;
+            const messages = await messagesCollection.find({ room: roomId }).toArray();
             res.send(messages);
         });
 
