@@ -62,6 +62,7 @@ io.on("connection", (socket) => {
             receiverName,
             timestamp: new Date()
         };
+        console.log(messageData);
         io.to(room).emit("receiveMessage", { sender: socket.id, photo, message });
 
         // Save the message to the messages collection
