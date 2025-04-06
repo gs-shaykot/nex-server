@@ -53,8 +53,7 @@ io.on("connection", (socket) => {
     });
 
     // Send Message
-    socket.on("sentMessage", async ({ room, message, senderName, photo, receiverName }) => {
-        console.log(photo)
+    socket.on("sentMessage", async ({ room, message, senderName, photo, receiverName }) => { 
         const messageData = {
             room,
             message,
