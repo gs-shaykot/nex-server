@@ -37,7 +37,8 @@ io.on("connection", (socket) => {
         const roomId = Math.random().toString(36).substr(2, 6);
         socket.join(roomId);
         roomUsers[roomId] = [{ socketId: socket.id, ...userData }];
-        socket.emit("RoomCreated", roomId);
+        const { name, timestamp } = userData
+        socket.emit("RoomCreated", roomId, name, timestamp);
         console.log("Room Created: ", roomId);
     });
 
