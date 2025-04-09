@@ -36,31 +36,40 @@ io.on("connection", (socket) => {
     socket.on("createRoom", (userData) => {
         const roomId = Math.random().toString(36).substr(2, 6);
         socket.join(roomId);
-        roomUsers[roomId] = [{ socketId: socket.id, ...userData }]
+        roomUsers[roomId] = [{ socketId: socket.id, ...userData }];
         socket.emit("RoomCreated", roomId);
-        console.log("Room Created: ", roomId)
+        console.log("Room Created: ", roomId);
     });
 
-    // Join Room
+    // Join Room 
     socket.on("JoinRoom", ({ roomId, userData }) => {
         socket.join(roomId);
         if (!roomUsers[roomId]) {
             roomUsers[roomId] = []
         }
-        socket.emit("RoomJoined", roomId);
         roomUsers[roomId].push({ socketId: socket.id, ...userData })
+        socket.emit("RoomJoined", roomId);
         io.to(roomId).emit("updatedRoomUser", roomUsers[roomId])
     });
 
+    socket.on("getRoomUsers", (roomId) => {
+        if (roomUsers[roomId]) {
+            socket.emit("updatedRoomUser", roomUsers[roomId]);
+        } else {
+            socket.emit("updatedRoomUser", []); // Empty array if room doesn’t exist
+        }
+    });
+
     // Send Message
-    socket.on("sentMessage", async ({ room, message, senderName, photo, receiverName }) => {
+    socket.on("sentMessage", async ({ room, message, senderName, senderEmail, photo, receiverName }) => {
         const messageData = {
             room,
             message,
             photo,
             senderName,
+            senderEmail,
             receiverName,
-            timestamp: new Date()
+            timestamp: new Date(),
         };
         io.to(room).emit("receiveMessage", { sender: socket.id, senderName, photo, message });
 
@@ -71,9 +80,9 @@ io.on("connection", (socket) => {
 
     // Handle Disconnect
     socket.on("disconnect", () => {
-        for (roomId in roomUsers) {
-            roomUsers[roomId] = roomUsers[roomId].filter(user => user.socketId !== socket.id)
-            io.to(roomId).emit("updatedRoomUser", roomUsers[roomId])
+        for (let roomId in roomUsers) {
+            roomUsers[roomId] = roomUsers[roomId].filter(user => user.socketId !== socket.id);
+            io.to(roomId).emit("updatedRoomUser", roomUsers[roomId]);
         }
         console.log(`Disconnected user ID: ${socket.id}`);
     });
