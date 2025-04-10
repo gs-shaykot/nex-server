@@ -259,7 +259,7 @@ async function run() {
                 res.send(result);
 
             } catch (error) {
-                console.log(err.message)
+                console.log(error.message)
                 res.send({ message: "This error from Schedule api" })
             }
 
@@ -267,10 +267,19 @@ async function run() {
         // send schedule to front-end 
         app.get('/schedule-collections/:email', async (req, res) => {
 
-            const email = req.params.email
+            try {
+                const email = req.params.email
 
-            const result = await scheduleCollection.find({ email: email }).toArray();
-            res.send(result);
+                const result = await scheduleCollection.find({ email: email }).sort({ Date: 1 }).toArray();
+                res.send(result)
+            } catch
+            (err) {
+                console.log(err);
+                res.send({ message: "This message from schedule-collections get method" })
+
+            }
+
+
 
         })
 
