@@ -1,6 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const axios = require('axios'); // Import axios for making HTTP requests
+const { v4: uuidv4 } = require('uuid'); // Import uuid for generating unique IDs    
 const app = express()
 const http = require('http')
 const { Server } = require('socket.io')
@@ -33,24 +35,75 @@ io.on("connection", (socket) => {
     console.log("Connected ID:", socket.id);
 
     // Create Room
-    socket.on("createRoom", (userData) => {
-        const roomId = Math.random().toString(36).substr(2, 6);
-        socket.join(roomId);
-        roomUsers[roomId] = [{ socketId: socket.id, ...userData }];
-        const { name, timestamp } = userData
-        socket.emit("RoomCreated", roomId, name, timestamp);
-        console.log("Room Created: ", roomId);
+    socket.on("createRoom", async (userData) => {
+        try {
+            // 100ms room create 
+            const roomResponse = await axios.post(
+                "https://api.100ms.live/v2/rooms",
+                {
+                    name: `room-${socket.id}-${Date.now()}`, // ইউনিক নাম
+                    description: "Dynamic room for NexCall",
+                    template_id: process.env.HMS_TEMPLATE_ID, // 100ms ড্যাশবোর্ড থেকে নাও
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.HMS_MANAGEMENT_TOKEN}`,
+                    },
+                }
+            );
+            const roomId = roomResponse.data.id; // 100ms room id
+            socket.join(roomId);
+            roomUsers[roomId] = [{ socketId: socket.id, ...userData }];
+            const { name, timestamp } = userData;
+            socket.emit("RoomCreated", roomId, name, timestamp);
+            console.log("Room Created: ", roomId);
+        } catch (error) {
+            console.error("Error creating 100ms room:", error);
+            socket.emit("RoomCreationError", "Failed to create room");
+        }
+        // const roomId = Math.random().toString(36).substr(2, 6);
+        // socket.join(roomId);
+        // roomUsers[roomId] = [{ socketId: socket.id, ...userData }];
+        // const { name, timestamp } = userData
+        // socket.emit("RoomCreated", roomId, name, timestamp);
+        // console.log("Room Created: ", roomId);
     });
 
     // Join Room 
-    socket.on("JoinRoom", ({ roomId, userData }) => {
-        socket.join(roomId);
-        if (!roomUsers[roomId]) {
-            roomUsers[roomId] = []
+    socket.on("JoinRoom", async ({ roomId, userData }) => {
+        try {
+            // 100ms room check 
+            const roomResponse = await axios.get(
+                `https://api.100ms.live/v2/rooms/${roomId}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${process.env.HMS_MANAGEMENT_TOKEN}`,
+                    },
+                }
+            );
+            if (!roomResponse.data.id) {
+                socket.emit("RoomJoinError", "Invalid room ID");
+                return;
+            }
+
+            socket.join(roomId);
+            if (!roomUsers[roomId]) {
+                roomUsers[roomId] = [];
+            }
+            roomUsers[roomId].push({ socketId: socket.id, ...userData });
+            socket.emit("RoomJoined", roomId);
+            io.to(roomId).emit("updatedRoomUser", roomUsers[roomId]);
+        } catch (error) {
+            console.error("Error joining room:", error);
+            socket.emit("RoomJoinError", "Failed to join room");
         }
-        roomUsers[roomId].push({ socketId: socket.id, ...userData })
-        socket.emit("RoomJoined", roomId);
-        io.to(roomId).emit("updatedRoomUser", roomUsers[roomId])
+        // socket.join(roomId);
+        // if (!roomUsers[roomId]) {
+        //     roomUsers[roomId] = []
+        // }
+        // roomUsers[roomId].push({ socketId: socket.id, ...userData })
+        // socket.emit("RoomJoined", roomId);
+        // io.to(roomId).emit("updatedRoomUser", roomUsers[roomId])
     });
 
 
@@ -90,6 +143,36 @@ io.on("connection", (socket) => {
     });
 });
 
+// 100ms token generate 
+app.get('/token', async (req, res) => {
+    try {
+        const { roomId } = req.query;
+        if (!roomId) {
+            return res.status(400).json({ error: "Room ID is required" });
+        }
+
+        const tokenId = uuidv4(); // Generate a unique token ID
+        // const tokenUrl = `https://api.100ms.live/v2/rooms/${roomId}/tokens`;
+        const payload = {
+            access_key: process.env.APP_ACCESS_KEY,
+            room_id: roomId,
+            user_id: `user-${Math.random().toString(36).substring(7)}`,
+            role: "host", // অথবা guest, 100ms ড্যাশবোর্ডে রোল কনফিগার করো
+            jwtid: tokenId,
+        };
+
+        const token = jwt.sign(payload, process.env.HMS_APP_SECRET, {
+            expiresIn: "24h",
+            algorithm: "HS256",
+            jwtid: tokenId,
+        });
+        console.log("Generated token:", token);
+        res.json({ token });
+    } catch (error) {
+        console.error("Error generating token:", error);
+        res.status(500).json({ error: "Failed to generate token" });
+    }
+})
 
 app.get('/', (req, res) => {
     res.send("NEXCALL SERVER RUNNING")
