@@ -16,13 +16,13 @@ app.use(cookieParser());
 
 // Middleware 
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'https://nexcall.up.railway.app'],
+    origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'http://localhost:5000'],
     credentials: true
 }));
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'https://nexcall.up.railway.app'],
+        origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'http://localhost:5000'],
         methods: ['GET', 'POST'],
         credentials: true
     }
