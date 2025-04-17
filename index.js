@@ -185,6 +185,7 @@ app.get('/token', async (req, res) => {
             algorithm: "HS256",
             jwtid: tokenId,
         });
+        console.log("Generated token:", token);
         res.json({ token });
     } catch (error) {
         console.error("Error generating token:", error);
