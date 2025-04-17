@@ -15,13 +15,13 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'http://localhost:5000'],
+    origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'https://nexcall.up.railway.app'],
     credentials: true
 }));
 
 const io = new Server(server, {
     cors: {
-        origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'http://localhost:5000'],
+        origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'https://nexcall.up.railway.app'],
         methods: ['GET', 'POST'],
         credentials: true
     }
@@ -185,7 +185,6 @@ app.get('/token', async (req, res) => {
             algorithm: "HS256",
             jwtid: tokenId,
         });
-        console.log("Generated token:", token);
         res.json({ token });
     } catch (error) {
         console.error("Error generating token:", error);
