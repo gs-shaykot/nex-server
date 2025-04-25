@@ -10,18 +10,14 @@ const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const cookieParser = require('cookie-parser');
 const jwt = require('jsonwebtoken');
-const stripe = require('stripe')(process.env.STRIPE_SECRECT_KEY); /// add stripe key
-
 
 app.use(express.json());
 app.use(cookieParser());
-
 
 app.use(cors({
     origin: ['http://localhost:5173', 'https://nexcall-1425e.web.app', 'https://nexcall.up.railway.app'],
     credentials: true
 }));
-
 
 const io = new Server(server, {
     cors: {
@@ -31,19 +27,16 @@ const io = new Server(server, {
     }
 });
 
-
 const roomUsers = {};
 const roomCodeToIdMap = {}; // New mapping for roomCode to room_id
-
 
 io.on("connection", (socket) => {
     console.log("Connected ID:", socket.id);
 
-
     // Create Room
     socket.on("createRoom", async (userData) => {
         try {
-            // 100ms room create
+            // 100ms room create 
             const roomResponse = await axios.post(
                 "https://api.100ms.live/v2/rooms",
                 {
@@ -57,8 +50,7 @@ io.on("connection", (socket) => {
                     },
                 }
             );
-            const roomId = roomResponse.data.id; // 100ms room id
-
+            const roomId = roomResponse.data.id; // 100ms room id 
 
             // Generate room code
             const roomCodeResponse = await axios.post(
@@ -72,14 +64,11 @@ io.on("connection", (socket) => {
                 }
             );
 
-
             const roomCode = roomCodeResponse.data.data.find(code => code.enabled)?.code;
             console.log("Room Code:", roomCode);
 
-
             // Store mapping of roomCode to roomId
             roomCodeToIdMap[roomCode] = roomId;
-
 
             socket.join(roomCode);
             roomUsers[roomCode] = [{ socketId: socket.id, ...userData }];
@@ -87,26 +76,22 @@ io.on("connection", (socket) => {
             socket.emit("RoomCreated", roomCode, name, timestamp);
             console.log("Room Created: ", roomCode);
 
-
         } catch (error) {
             console.error("Error creating 100ms room:", error);
             socket.emit("RoomCreationError", "Failed to create room");
         }
     });
 
-
-    // Join Room
+    // Join Room 
     socket.on("JoinRoom", async ({ roomId, userData }) => {
         try {
             // roomId here is actually the roomCode
             const actualRoomId = roomCodeToIdMap[roomId]; // Get the actual room_id
 
-
             if (!actualRoomId) {
                 socket.emit("RoomJoinError", "Invalid room code");
                 return;
             }
-
 
             // Check if the room exists in 100ms
             const roomResponse = await axios.get(
@@ -118,12 +103,10 @@ io.on("connection", (socket) => {
                 }
             );
 
-
             if (!roomResponse.data.id) {
                 socket.emit("RoomJoinError", "Room not found");
                 return;
             }
-
 
             socket.join(roomId); // Join the socket room using roomCode
             if (!roomUsers[roomId]) {
@@ -138,7 +121,6 @@ io.on("connection", (socket) => {
         }
     });
 
-
     socket.on("getRoomUsers", (roomId) => {
         if (roomUsers[roomId]) {
             socket.emit("updatedRoomUser", roomUsers[roomId]);
@@ -146,7 +128,6 @@ io.on("connection", (socket) => {
             socket.emit("updatedRoomUser", []);
         }
     });
-
 
     // Send Message
     socket.on("sentMessage", async ({ room, message, senderName, senderEmail, photo, receiverName }) => {
@@ -161,11 +142,9 @@ io.on("connection", (socket) => {
         };
         io.to(room).emit("receiveMessage", { sender: socket.id, senderName, photo, message });
 
-
         const messagesCollection = client.db("NexCall").collection('messages');
         await messagesCollection.insertOne(messageData);
     });
-
 
     // Handle Disconnect
     socket.on("disconnect", () => {
@@ -181,8 +160,7 @@ io.on("connection", (socket) => {
     });
 });
 
-
-// 100ms token generate
+// 100ms token generate 
 app.get('/token', async (req, res) => {
     try {
         const { roomId } = req.query;
@@ -190,10 +168,8 @@ app.get('/token', async (req, res) => {
             return res.status(400).json({ error: "Room ID is required" });
         }
 
-
         // Map roomCode to actual room_id if necessary
         const actualRoomId = roomCodeToIdMap[roomId] || roomId;
-
 
         const tokenId = uuidv4();
         const payload = {
@@ -203,7 +179,6 @@ app.get('/token', async (req, res) => {
             role: "host",
             jwtid: tokenId,
         };
-
 
         const token = jwt.sign(payload, process.env.HMS_APP_SECRET, {
             expiresIn: "24h",
@@ -218,15 +193,12 @@ app.get('/token', async (req, res) => {
     }
 });
 
-
 app.get('/', (req, res) => {
     res.send("NEXCALL SERVER RUNNING");
 });
 
-
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const uri = `mongodb+srv://${process.env.db_user}:${process.env.db_pass}@cluster0.mvhtan2.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
-
 
 const client = new MongoClient(uri, {
     serverApi: {
@@ -236,14 +208,11 @@ const client = new MongoClient(uri, {
     }
 });
 
-
 async function run() {
     try {
         const usersCollections = client.db("NexCall").collection('users');
         const messagesCollection = client.db("NexCall").collection('messages');
         const scheduleCollection = client.db("NextCall").collection("schedule");
-        const paymentCollection = client.db("NextCall").collection("payments");
-
 
         // JWT AUTH ENDPOINTS
         app.post('/jwt', async (req, res) => {
@@ -260,11 +229,9 @@ async function run() {
                 .send({ success: 'cookie created' });
         });
 
-
         app.get('/jwt', async (req, res) => {
             res.send("jwt /jwt working");
         });
-
 
         app.post('/jwtlogout', async (req, res) => {
             res
@@ -276,11 +243,9 @@ async function run() {
                 .send({ success: 'cookie cleared' });
         });
 
-
         app.get('/logout', async (req, res) => {
             res.send("jwt /logout working");
         });
-
 
         const verifyToken = (req, res, next) => {
             const token = req?.cookies?.token;
@@ -296,13 +261,11 @@ async function run() {
             });
         };
 
-
         app.get('/messages/:roomId', async (req, res) => {
             const roomId = req.params.roomId;
             const messages = await messagesCollection.find({ room: roomId }).toArray();
             res.send(messages);
         });
-
 
         app.get("/conversations/user/:email", async (req, res) => {
             const { email } = req.params;
@@ -321,7 +284,6 @@ async function run() {
                     }
                 }
             ]).toArray();
-
 
             const roomIds = userRooms.map(r => r._id);
             const result = await messagesCollection.aggregate([
@@ -362,10 +324,8 @@ async function run() {
                 }
             ]).toArray();
 
-
             res.json(result);
         });
-
 
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -373,12 +333,10 @@ async function run() {
             res.send(result);
         });
 
-
         app.get('/users', async (req, res) => {
             const results = await usersCollections.find().toArray();
             res.send(results);
         });
-
 
         app.post("/schedule-collections", async (req, res) => {
             try {
@@ -391,11 +349,10 @@ async function run() {
             }
         });
 
-
         app.get('/schedule-collections/:email', async (req, res) => {
             try {
                 const email = req.params.email;
-                const result = await scheduleCollection.find({ email: email }).sort({ Date: 1,Time:1 }).toArray();
+                const result = await scheduleCollection.find({ email: email }).sort({ Date: 1 }).toArray();
                 res.send(result);
             } catch (err) {
                 console.log(err);
@@ -403,101 +360,14 @@ async function run() {
             }
         });
 
-
-
-
-        // stripe
-       
-        app.post('/create-payment-intent', async (req,res)=>{
-            // amount pass like {}
-         
-            console.log("called payment")
-
-
-            try{
-                const paymentIntent = await  stripe.paymentIntents.create({
-                   amount : req.body.amount*100,
-                    currency:req.body.currency || 'usd',
-                    automatic_payment_methods:{
-                        enabled:true
-                    }
-
-
-                })
-                res.json({clientSecret:paymentIntent.client_secret})
-
-
-
-
-            }catch(error){
-                res.status(500).json({error:error.message});
-
-
-            }
-        })
-        // create payment successed api
-
-
-        app.post('/payment-success', async(req,res)=>{
-
-
-         
-
-
-            try{
-                const info = req.body;
-
-
-                const result = await paymentCollection.insertOne(info);
-         
-                res.send(result);
-
-
-
-
-            }catch(error)
-            {
-                res.status(404).send({message: error.message})
-            }
-
-
-        })
-        // all payments
-       
-        app.get('/all-payments', async(req,res)=>{
-
-
-          try{
-            const result = await paymentCollection.find().toArray();
-            res.send(result);
-          }catch(error)
-          {
-            res.send({message:error.message})
-
-
-          }
-        })
-
-
-
-
-
-
-
-
-
-
     } finally {
         // Ensures that the client will close when you finish/error
         // await client.close();
     }
 }
 
-
 run().catch(console.dir);
-
 
 server.listen(5000, () => {
     console.log(`Server running using Socket.io on http://localhost:${PORT}`);
 });
-
